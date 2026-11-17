@@ -29,7 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authError, setAuthError] = useState<string | null>(null);
   const configured = isSupabaseConfigured();
 
-  // Función estricta para obtener y validar perfil
+  // Función estricta para obtener y validar perfil desde la base de datos
   const getVerifiedProfile = async (userId: string): Promise<Profile | null> => {
     if (!configured) return null;
     try {
@@ -61,14 +61,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // 1. Verificar sesión existente al cargar la aplicación
+    // 1. Verificar sesión existente al cargar la aplicación una sola vez
     supabase.auth
       .getSession()
       .then(async ({ data: { session: currentSession } }) => {
         if (currentSession?.user) {
           const prof = await getVerifiedProfile(currentSession.user.id);
 
-          // Si el perfil no existe o está inhabilitado (active === false), expulsar inmediatamente
+          // Si el perfil no existe o está inhabilitado, expulsar inmediatamente
           if (!prof || prof.active === false) {
             await supabase.auth.signOut();
             setUser(null);
@@ -104,12 +104,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      // Ignoramos el evento SIGNED_OUT ya que limpiaremos explícitamente
       if (event === 'SIGNED_OUT' || !currentSession?.user) {
         setUser(null);
         setSession(null);
         setProfile(null);
-        setLoading(false);
         return;
       }
 
@@ -126,7 +124,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             'Esta cuenta ha sido inhabilitada por un administrador. No tienes acceso al sistema.'
           );
         }
-        setLoading(false);
         return;
       }
 
@@ -134,7 +131,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(prof);
       setUser(currentSession.user);
       setSession(currentSession);
-      setLoading(false);
     });
 
     return () => {
@@ -142,7 +138,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [configured]);
 
-  const signIn = async (email: string, password: string) => {
+  // Proceso de inicio de sesión seguro
+  // NOTA: NO modifica el estado global `loading` para evitar desmontar la pantalla de Login
+  const signIn = async (email: string, password: string): Promise<{ error: Error | null }> => {
     if (!configured) {
       return {
         error: new Error(
@@ -151,46 +149,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    setAuthError(null);
-    setLoading(true);
+    try {
+      setAuthError(null);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (error) {
-      setLoading(false);
-      return { error };
-    }
-
-    if (data.user) {
-      // Validar inmediatamente el estado en la tabla profiles
-      const prof = await getVerifiedProfile(data.user.id);
-
-      if (!prof || prof.active === false) {
-        // Expulsar de inmediato sin dejar rastro de sesión
-        await supabase.auth.signOut();
-        setUser(null);
-        setSession(null);
-        setProfile(null);
-        setLoading(false);
-
-        const blockMsg =
-          'Esta cuenta ha sido inhabilitada por un administrador. No tienes acceso al sistema.';
-        setAuthError(blockMsg);
-        return { error: new Error(blockMsg) };
+      if (error) {
+        return { error };
       }
 
-      // Si está activo, admitir
-      setProfile(prof);
-      setUser(data.user);
-      setSession(data.session);
-      setAuthError(null);
-    }
+      if (data.user) {
+        // Validar inmediatamente el estado en la tabla profiles
+        const prof = await getVerifiedProfile(data.user.id);
 
-    setLoading(false);
-    return { error: null };
+        if (!prof || prof.active === false) {
+          // Expulsar de inmediato sin dejar rastro de sesión
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+
+          const blockMsg =
+            'Esta cuenta ha sido inhabilitada por un administrador. No tienes acceso al sistema.';
+          setAuthError(blockMsg);
+          return { error: new Error(blockMsg) };
+        }
+
+        // Si está activo, admitir en el estado
+        setProfile(prof);
+        setUser(data.user);
+        setSession(data.session);
+        setAuthError(null);
+      }
+
+      return { error: null };
+    } catch (err: unknown) {
+      const errObj = err instanceof Error ? err : new Error('Error al iniciar sesión');
+      return { error: errObj };
+    }
   };
 
   const signOut = async () => {

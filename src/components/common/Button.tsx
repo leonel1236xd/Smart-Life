@@ -22,8 +22,8 @@ export const Button: React.FC<ButtonProps> = ({
     'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]';
 
   const sizeClasses = {
-    sm: 'text-xs px-3 py-1.5 min-h-[36px] gap-1.5',
-    md: 'text-sm px-4 py-2.5 min-h-[44px] gap-2', // Cumple recomendación de 44px táctil
+    sm: 'text-xs px-3 py-1.5 min-h-[36px] gap-2',
+    md: 'text-sm px-4 py-2.5 min-h-[44px] gap-2',
     lg: 'text-base px-5 py-3 min-h-[50px] gap-2.5 font-semibold',
   }[size];
 
@@ -49,9 +49,9 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <Loader2 className="w-4 h-4 animate-spin text-current shrink-0" />
       ) : (
-        icon && <span className="shrink-0">{icon}</span>
+        icon && <span className="inline-flex items-center justify-center shrink-0">{icon}</span>
       )}
-      <span>{children}</span>
+      <span className="inline-flex items-center justify-center leading-none">{children}</span>
     </button>
   );
 };

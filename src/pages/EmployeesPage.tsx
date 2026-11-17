@@ -205,8 +205,8 @@ export const EmployeesPage: React.FC = () => {
 
       {/* Barra de pestañas y búsqueda */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-        {/* Pestañas de estado */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#0f141f] border border-[#1b2535]">
+        {/* Pestañas de estado con scroll horizontal suave en móvil */}
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#0f141f] border border-[#1b2535] overflow-x-auto shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('all')}

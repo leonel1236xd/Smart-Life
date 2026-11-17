@@ -70,25 +70,25 @@ export const Modal: React.FC<ModalProps> = ({
           {/* Contenido del modal adaptado a móvil (bottom sheet) y escritorio (modal centrado) */}
           <motion.div
             ref={modalRef}
-            initial={{ opacity: 0, y: 30, scale: 0.98 }}
+            initial={{ opacity: 0, y: 40, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 30, scale: 0.98 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className={`relative w-full ${maxWidthClasses} bg-[#111722] border border-[#222c3d] rounded-t-2xl sm:rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh]`}
+            exit={{ opacity: 0, y: 40, scale: 0.98 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 360 }}
+            className={`relative w-full ${maxWidthClasses} bg-[#111722] border border-[#222c3d] rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[85vh]`}
           >
-            {/* Barra superior de arrastre / decoración en móvil */}
-            <div className="w-12 h-1.5 bg-slate-700/60 rounded-full mx-auto mt-2.5 sm:hidden" />
+            {/* Barra superior de arrastre visual en móvil */}
+            <div className="w-12 h-1 bg-slate-700/70 rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
 
             {/* Header del Modal */}
-            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-[#1c2536]">
-              <div>
-                <h3 className="text-lg font-bold text-white tracking-tight">{title}</h3>
-                {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
+            <div className="flex items-center justify-between px-4 sm:px-6 pt-3 sm:pt-4 pb-3 border-b border-[#1c2536] shrink-0">
+              <div className="min-w-0 pr-2">
+                <h3 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">{title}</h3>
+                {subtitle && <p className="text-xs text-slate-400 mt-0.5 truncate">{subtitle}</p>}
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-[#1a2332] active:scale-95 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-[#1a2332] active:scale-95 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
                 aria-label="Cerrar ventana"
               >
                 <X className="w-5 h-5" />
@@ -96,7 +96,9 @@ export const Modal: React.FC<ModalProps> = ({
             </div>
 
             {/* Contenedor scrolleable del formulario */}
-            <div className="px-5 py-4 overflow-y-auto">{children}</div>
+            <div className="px-4 sm:px-6 py-4 overflow-y-auto overscroll-contain pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:pb-5">
+              {children}
+            </div>
           </motion.div>
         </div>
       )}

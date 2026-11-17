@@ -69,8 +69,10 @@ export const RecentSalesList: React.FC<RecentSalesListProps> = ({
             </p>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <User className="w-3 h-3 text-slate-500" />
-                {sale.profiles?.full_name || 'Empleado'}
+                <User className="w-3 h-3 text-slate-500 shrink-0" />
+                <span className="truncate max-w-[110px] sm:max-w-none">
+                  {sale.profiles?.full_name || 'Empleado'}
+                </span>
               </span>
               <span className="text-[11px] text-slate-500 flex items-center gap-1">
                 <Clock className="w-3 h-3 text-slate-600" />

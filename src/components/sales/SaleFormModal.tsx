@@ -4,7 +4,7 @@ import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
-import { Package, Hash, DollarSign, FileText, PlusCircle } from 'lucide-react';
+import { Package, Hash, DollarSign, FileText, PlusCircle, Minus, Plus } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters';
 import type { CreateSaleInput, Sale } from '../../types';
 
@@ -41,12 +41,14 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
   });
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // Focus en el campo de producto al abrir
+  // Focus en el campo de producto al abrir solo en pantallas grandes para no abrir teclado bruscamente en móvil
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => {
-        productRef.current?.focus();
-      }, 200);
+      if (window.innerWidth >= 640) {
+        setTimeout(() => {
+          productRef.current?.focus();
+        }, 150);
+      }
     } else {
       // Resetear formulario al cerrar
       setFormData({ product_name: '', quantity: 1, unit_price: null, notes: null });
@@ -66,22 +68,22 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
 
     const qty = Number(formData.quantity);
     if (isNaN(qty) || qty <= 0) {
-      newErrors.quantity = 'La cantidad debe ser un número entero mayor a 0';
+      newErrors.quantity = 'Cantidad mayor a 0';
     } else if (!Number.isInteger(qty)) {
-      newErrors.quantity = 'Debe ser un número entero';
+      newErrors.quantity = 'Número entero';
     }
 
-    // Precio Unitario AHORA ES OBLIGATORIO
+    // Precio Unitario Obligatorio
     if (
       formData.unit_price === null ||
       formData.unit_price === undefined ||
       formData.unit_price === ('' as unknown)
     ) {
-      newErrors.unit_price = 'El precio unitario es obligatorio';
+      newErrors.unit_price = 'El precio es obligatorio';
     } else {
       const price = Number(formData.unit_price);
       if (isNaN(price) || price <= 0) {
-        newErrors.unit_price = 'Ingresa un precio válido mayor a 0 (ej: 50)';
+        newErrors.unit_price = 'Precio válido mayor a 0';
       }
     }
 
@@ -107,10 +109,15 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
 
   const handleFieldChange = (field: keyof CreateSaleInput, value: string | number | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Limpiar error del campo al modificar
     if (errors[field as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
+  };
+
+  const adjustQuantity = (delta: number) => {
+    const current = Number(formData.quantity) || 1;
+    const next = Math.max(1, current + delta);
+    handleFieldChange('quantity', next);
   };
 
   // Cálculo de total estimado en vivo
@@ -122,15 +129,15 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Registrar venta"
-      subtitle={profile ? `Registrando como ${profile.full_name}` : undefined}
+      title="Registrar Venta"
+      subtitle={profile ? `Registrando como: ${profile.full_name}` : undefined}
     >
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4" noValidate>
         {/* Producto */}
         <Input
           ref={productRef}
           label="Producto o accesorio"
-          placeholder="Ej: Laptop HP 15-ef, Mouse Gamer, Cable HDMI..."
+          placeholder="Ej: Laptop HP 15, Mouse Gamer, Cable HDMI..."
           value={formData.product_name}
           onChange={(e) => handleFieldChange('product_name', e.target.value)}
           error={errors.product_name}
@@ -139,30 +146,61 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
           autoComplete="off"
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          {/* Cantidad */}
-          <Input
-            label="Cantidad"
-            type="number"
-            placeholder="1"
-            min={1}
-            step={1}
-            value={formData.quantity === 0 ? '' : String(formData.quantity)}
-            onChange={(e) => {
-              const val = e.target.value;
-              handleFieldChange('quantity', val === '' ? 0 : parseInt(val, 10));
-            }}
-            error={errors.quantity}
-            required
-            leftIcon={<Hash className="w-4 h-4" />}
-            inputMode="numeric"
-          />
+        {/* Fila Cantidad y Precio: 2 columnas compactas en móvil para evitar scroll innecesario */}
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
+          {/* Cantidad con stepper táctil integrado */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-slate-300 tracking-wide flex items-center justify-between">
+              <span>Cantidad <span className="text-rose-400">*</span></span>
+            </label>
+            <div className="relative flex items-center">
+              <div className="absolute left-2.5 pointer-events-none text-slate-400 shrink-0">
+                <Hash className="w-4 h-4" />
+              </div>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                value={formData.quantity === 0 ? '' : String(formData.quantity)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  handleFieldChange('quantity', val === '' ? 0 : parseInt(val, 10));
+                }}
+                className={`w-full min-h-[44px] pl-8 pr-16 py-2 rounded-xl bg-[#0c111a] border text-slate-100 placeholder-slate-500 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#0084FF]/40 focus:border-[#0084FF] ${
+                  errors.quantity ? 'border-rose-500/70' : 'border-[#222d3d]'
+                }`}
+              />
+              {/* Botones rápidos +/- para comodidad táctil en celular */}
+              <div className="absolute right-1 flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => adjustQuantity(-1)}
+                  className="w-7 h-7 rounded-lg bg-[#141b26] hover:bg-[#1a2332] active:scale-90 border border-[#222d3d] flex items-center justify-center text-slate-300 transition-transform"
+                  aria-label="Disminuir cantidad"
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => adjustQuantity(1)}
+                  className="w-7 h-7 rounded-lg bg-[#141b26] hover:bg-[#1a2332] active:scale-90 border border-[#222d3d] flex items-center justify-center text-slate-300 transition-transform"
+                  aria-label="Aumentar cantidad"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+            {errors.quantity && (
+              <p className="text-[11px] text-rose-400 font-medium">{errors.quantity}</p>
+            )}
+          </div>
 
           {/* Precio unitario (OBLIGATORIO) */}
           <Input
-            label="Precio unitario (Bs.)"
+            label="Precio Unit. (Bs.)"
             type="number"
-            placeholder="50 Bs"
+            placeholder="Ej: 50 Bs"
             min={0.01}
             step={0.01}
             value={
@@ -183,9 +221,14 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
 
         {/* Resumen dinámico del total */}
         {totalEstimado !== null && (
-          <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-blue-950/40 border border-blue-500/30 text-xs">
-            <span className="text-slate-300 font-medium">Total de la operación:</span>
-            <span className="text-base font-bold text-emerald-400">
+          <div className="flex items-center justify-between p-3 rounded-xl bg-blue-950/40 border border-blue-500/30 text-xs">
+            <div>
+              <span className="text-slate-400 font-medium">Total a cobrar:</span>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {formData.quantity} {Number(formData.quantity) === 1 ? 'unidad' : 'unidades'} × {formatCurrency(formData.unit_price || 0)}
+              </p>
+            </div>
+            <span className="text-base sm:text-lg font-bold text-emerald-400">
               {formatCurrency(totalEstimado)}
             </span>
           </div>
@@ -194,7 +237,7 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
         {/* Notas (opcional) */}
         <div className="w-full flex flex-col gap-1.5">
           <label htmlFor="sale-notes" className="text-xs font-semibold text-slate-300 tracking-wide">
-            Notas u observaciones
+            Notas u observaciones <span className="text-[11px] font-normal text-slate-500">(opcional)</span>
           </label>
           <div className="relative flex items-start">
             <div className="absolute left-3.5 top-3 pointer-events-none text-slate-400 shrink-0">
@@ -203,21 +246,21 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
             <textarea
               id="sale-notes"
               rows={2}
-              placeholder="Número de serie, color, garantía, etc. (opcional)"
+              placeholder="Garantía, color, serial, accesorios incluidos..."
               value={formData.notes || ''}
               onChange={(e) => handleFieldChange('notes', e.target.value || null)}
-              className="w-full min-h-[64px] pl-10 pr-3.5 py-2.5 rounded-xl bg-[#0c111a] border border-[#222d3d] text-slate-100 placeholder-slate-500 text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#0084FF]/40 focus:border-[#0084FF] resize-none"
+              className="w-full min-h-[58px] pl-10 pr-3.5 py-2 rounded-xl bg-[#0c111a] border border-[#222d3d] text-slate-100 placeholder-slate-500 text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#0084FF]/40 focus:border-[#0084FF] resize-none"
             />
           </div>
         </div>
 
-        {/* Acciones */}
-        <div className="flex gap-3 pt-2">
+        {/* Acciones del formulario */}
+        <div className="flex gap-2.5 sm:gap-3 pt-2">
           <Button
             type="button"
             variant="secondary"
             onClick={onClose}
-            className="flex-1"
+            className="flex-1 min-h-[46px]"
             disabled={submitting}
           >
             Cancelar
@@ -226,8 +269,8 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
             type="submit"
             variant="primary"
             loading={submitting}
-            icon={<PlusCircle className="w-4 h-4" />}
-            className="flex-1"
+            icon={<PlusCircle className="w-4 h-4 stroke-[2.5]" />}
+            className="flex-1 min-h-[46px]"
           >
             Registrar Venta
           </Button>

@@ -43,7 +43,7 @@ export const DashboardPage: React.FC = () => {
           <StatCard
             title="Ventas hoy"
             value={formatNumber(stats.today_sales_count)}
-            subtitle={`${formatNumber(stats.today_units_sold)} unidades`}
+            subtitle="Operaciones de hoy"
             icon={ShoppingBag}
             accentColor="blue"
             loading={statsLoading}
@@ -63,6 +63,7 @@ export const DashboardPage: React.FC = () => {
             icon={TrendingUp}
             accentColor="amber"
             loading={statsLoading}
+            className="col-span-2 sm:col-span-1"
           />
         </div>
       </section>
@@ -76,7 +77,7 @@ export const DashboardPage: React.FC = () => {
           <StatCard
             title="Ventas del mes"
             value={formatNumber(stats.month_sales_count)}
-            subtitle={`${formatNumber(stats.month_units_sold)} unidades`}
+            subtitle="Operaciones del mes"
             icon={CalendarDays}
             accentColor="violet"
             loading={statsLoading}
@@ -84,7 +85,7 @@ export const DashboardPage: React.FC = () => {
           <StatCard
             title="Unidades mes"
             value={formatNumber(stats.month_units_sold)}
-            subtitle="Total del periodo"
+            subtitle="Total de artículos"
             icon={Package}
             accentColor="blue"
             loading={statsLoading}
@@ -96,6 +97,7 @@ export const DashboardPage: React.FC = () => {
             icon={TrendingUp}
             accentColor="emerald"
             loading={statsLoading}
+            className="col-span-2 sm:col-span-1"
           />
         </div>
       </section>
@@ -103,11 +105,11 @@ export const DashboardPage: React.FC = () => {
       {/* Stats generales */}
       <section>
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Total acumulado</h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <StatCard
             title="Total operaciones"
             value={formatNumber(stats.overall_sales_count)}
-            subtitle={`${formatNumber(stats.overall_units_sold)} unidades totales`}
+            subtitle="Ventas registradas"
             icon={BarChart3}
             accentColor="amber"
             loading={statsLoading}
