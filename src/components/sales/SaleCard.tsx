@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingBag, User, Clock, Calendar, Trash2, ChevronRight } from 'lucide-react';
+import { ShoppingBag, User, Clock, Calendar, Trash2, Pencil, ChevronRight } from 'lucide-react';
 import type { Sale } from '../../types';
 import { formatDateBolivia, formatTimeBolivia } from '../../lib/timezone';
 import { formatCurrency } from '../../lib/formatters';
@@ -10,6 +10,8 @@ interface SaleCardProps {
   index: number;
   showDelete?: boolean;
   onDelete?: (saleId: string) => void;
+  showEdit?: boolean;
+  onEdit?: (sale: Sale) => void;
   onClick?: (sale: Sale) => void;
 }
 
@@ -18,6 +20,8 @@ export const SaleCard: React.FC<SaleCardProps> = ({
   index,
   showDelete = false,
   onDelete,
+  showEdit = false,
+  onEdit,
   onClick,
 }) => {
   return (
@@ -26,7 +30,7 @@ export const SaleCard: React.FC<SaleCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: index * 0.03 }}
       onClick={() => onClick && onClick(sale)}
-      className="p-4 rounded-xl bg-[#111722] border border-[#1c2738] space-y-3 cursor-pointer hover:border-blue-500/40 hover:bg-[#131b28] active:scale-[0.99] transition-all group"
+      className="p-3.5 sm:p-4 rounded-xl bg-[#111722] border border-[#1c2738] space-y-3 cursor-pointer hover:border-blue-500/40 hover:bg-[#131b28] active:scale-[0.99] transition-all group"
     >
       {/* Header: producto + cantidad */}
       <div className="flex items-start justify-between gap-3">
@@ -56,22 +60,39 @@ export const SaleCard: React.FC<SaleCardProps> = ({
 
       {/* Footer: info y acciones */}
       <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#182030]">
-        <div className="flex items-center gap-3 flex-wrap text-[11px] text-slate-400">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap text-[11px] text-slate-400">
           <span className="flex items-center gap-1">
-            <User className="w-3 h-3 text-slate-500" />
-            {sale.profiles?.full_name || 'Empleado'}
+            <User className="w-3 h-3 text-slate-500 shrink-0" />
+            <span className="truncate max-w-[110px] sm:max-w-none">
+              {sale.profiles?.full_name || 'Empleado'}
+            </span>
           </span>
           <span className="flex items-center gap-1">
-            <Calendar className="w-3 h-3 text-slate-500" />
+            <Calendar className="w-3 h-3 text-slate-500 shrink-0" />
             {formatDateBolivia(sale.created_at)}
           </span>
           <span className="flex items-center gap-1">
-            <Clock className="w-3 h-3 text-slate-500" />
+            <Clock className="w-3 h-3 text-slate-500 shrink-0" />
             {formatTimeBolivia(sale.created_at)}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
+          {showEdit && onEdit && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(sale);
+              }}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-950/40 transition-colors active:scale-95"
+              aria-label={`Modificar venta de ${sale.product_name}`}
+              title="Modificar venta"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+
           {showDelete && onDelete && (
             <button
               type="button"
@@ -81,6 +102,7 @@ export const SaleCard: React.FC<SaleCardProps> = ({
               }}
               className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 transition-colors active:scale-95"
               aria-label={`Eliminar venta de ${sale.product_name}`}
+              title="Eliminar venta"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>

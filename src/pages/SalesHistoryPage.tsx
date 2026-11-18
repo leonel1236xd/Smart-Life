@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { ClipboardList, AlertTriangle } from 'lucide-react';
+import { ClipboardList, AlertTriangle, FileDown } from 'lucide-react';
 import { useSales } from '../hooks/useSales';
 import { useEmployees } from '../hooks/useEmployees';
 import { useAuth } from '../context/AuthContext';
@@ -10,12 +10,14 @@ import { SalesTable } from '../components/sales/SalesTable';
 import { SaleCard } from '../components/sales/SaleCard';
 import { Pagination } from '../components/common/Pagination';
 import { ConfirmModal } from '../components/common/ConfirmModal';
+import { SalesReportModal } from '../components/sales/SalesReportModal';
+import { Button } from '../components/common/Button';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 
 export const SalesHistoryPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
-  const { openDetailModal } = useSalesSync();
+  const { openDetailModal, openEditModal } = useSalesSync();
   const { employees, loading: employeesLoading } = useEmployees(false);
   const {
     sales,
@@ -33,6 +35,7 @@ export const SalesHistoryPage: React.FC = () => {
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [saleToDeleteId, setSaleToDeleteId] = useState<string | null>(null);
   const [deletingLoading, setDeletingLoading] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const handleDeleteRequest = (saleId: string) => {
     setSaleToDeleteId(saleId);
@@ -59,7 +62,7 @@ export const SalesHistoryPage: React.FC = () => {
   return (
     <div className="space-y-5">
       {/* Encabezado */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
             <ClipboardList className="w-5 h-5 text-blue-400" />
@@ -70,11 +73,25 @@ export const SalesHistoryPage: React.FC = () => {
           </p>
         </div>
 
-        {!loading && (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[#111722] border border-[#1c2738] text-slate-300 self-start sm:self-auto">
-            {totalCount} registro{totalCount !== 1 ? 's' : ''} en total
-          </span>
-        )}
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          {!loading && (
+            <span className="text-xs font-semibold px-2.5 py-1.5 rounded-xl bg-[#111722] border border-[#1c2738] text-slate-300">
+              {totalCount} registro{totalCount !== 1 ? 's' : ''} en total
+            </span>
+          )}
+
+          {isAdmin && (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<FileDown className="w-4 h-4 text-rose-400" />}
+              onClick={() => setIsReportModalOpen(true)}
+              className="border-rose-500/30 text-rose-200 hover:bg-rose-950/40 hover:border-rose-500/50"
+            >
+              Exportar PDF
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filtros */}
@@ -113,6 +130,8 @@ export const SalesHistoryPage: React.FC = () => {
                 index={index}
                 showDelete={isAdmin}
                 onDelete={handleDeleteRequest}
+                showEdit={isAdmin}
+                onEdit={openEditModal}
                 onClick={openDetailModal}
               />
             ))
@@ -125,6 +144,8 @@ export const SalesHistoryPage: React.FC = () => {
           loading={loading}
           showDelete={isAdmin}
           onDelete={handleDeleteRequest}
+          showEdit={isAdmin}
+          onEdit={openEditModal}
           onClick={openDetailModal}
         />
       )}
@@ -150,6 +171,14 @@ export const SalesHistoryPage: React.FC = () => {
         onConfirm={handleConfirmDelete}
         onCancel={() => setSaleToDeleteId(null)}
       />
+
+      {/* Modal para generar y descargar Reporte de Ventas en PDF (Solo Administrador) */}
+      {isAdmin && (
+        <SalesReportModal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

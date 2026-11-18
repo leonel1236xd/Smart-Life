@@ -18,6 +18,11 @@ interface SalesSyncContextType {
   isRegisterModalOpen: boolean;
   openRegisterModal: () => void;
   closeRegisterModal: () => void;
+  // Modal para modificar venta
+  editSale: Sale | null;
+  showEditModal: boolean;
+  openEditModal: (sale: Sale) => void;
+  closeEditModal: () => void;
 }
 
 const SalesSyncContext = createContext<SalesSyncContextType | undefined>(undefined);
@@ -33,6 +38,9 @@ export const SalesSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
 
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState<boolean>(false);
+
+  const [editSale, setEditSale] = useState<Sale | null>(null);
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
 
   const triggerRefresh = useCallback(() => {
     setSyncVersion((prev) => prev + 1);
@@ -66,6 +74,16 @@ export const SalesSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsRegisterModalOpen(false);
   }, []);
 
+  const openEditModal = useCallback((sale: Sale) => {
+    setEditSale(sale);
+    setShowEditModal(true);
+  }, []);
+
+  const closeEditModal = useCallback(() => {
+    setShowEditModal(false);
+    setEditSale(null);
+  }, []);
+
   return (
     <SalesSyncContext.Provider
       value={{
@@ -82,6 +100,10 @@ export const SalesSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isRegisterModalOpen,
         openRegisterModal,
         closeRegisterModal,
+        editSale,
+        showEditModal,
+        openEditModal,
+        closeEditModal,
       }}
     >
       {children}

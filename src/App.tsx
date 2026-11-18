@@ -10,6 +10,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { SaleFormModal } from './components/sales/SaleFormModal';
 import { SaleSuccessModal } from './components/sales/SaleSuccessModal';
 import { SaleDetailModal } from './components/sales/SaleDetailModal';
+import { SaleEditModal } from './components/sales/SaleEditModal';
 import { useSales } from './hooks/useSales';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
@@ -30,9 +31,13 @@ const AuthenticatedAppContent: React.FC = () => {
     showDetailModal,
     detailSale,
     closeDetailModal,
+    showEditModal,
+    editSale,
+    openEditModal,
+    closeEditModal,
   } = useSalesSync();
 
-  const { createSale, deleteSale, submitting } = useSales();
+  const { createSale, updateSale, deleteSale, submitting } = useSales();
 
   // Renderizado con control de acceso por roles y fallback 404
   const renderCurrentView = () => {
@@ -101,6 +106,16 @@ const AuthenticatedAppContent: React.FC = () => {
         onClose={closeDetailModal}
         canDelete={isAdmin}
         onDelete={deleteSale}
+        canEdit={isAdmin}
+        onEdit={openEditModal}
+      />
+
+      {/* Modal para modificar datos de una venta (solo administradores) */}
+      <SaleEditModal
+        isOpen={showEditModal}
+        sale={editSale}
+        onClose={closeEditModal}
+        onSubmit={updateSale}
       />
     </>
   );

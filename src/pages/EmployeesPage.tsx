@@ -13,12 +13,17 @@ import {
   Ban,
   Clock,
   AlertTriangle,
+  Pencil,
 } from 'lucide-react';
 import { useEmployees } from '../hooks/useEmployees';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../lib/supabase';
-import { createEmployee, type CreateEmployeeInput } from '../lib/admin';
+import {
+  createEmployee,
+  updateEmployee,
+  type CreateEmployeeInput,
+} from '../lib/admin';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { Skeleton } from '../components/common/Skeleton';
@@ -27,6 +32,10 @@ import { Input } from '../components/common/Input';
 import { ConfirmModal } from '../components/common/ConfirmModal';
 import { EmployeeFormModal } from '../components/employees/EmployeeFormModal';
 import { EmployeeSuccessModal } from '../components/employees/EmployeeSuccessModal';
+import {
+  EmployeeEditModal,
+  type EmployeeEditFormData,
+} from '../components/employees/EmployeeEditModal';
 import { formatDateBolivia } from '../lib/timezone';
 import type { Profile } from '../types';
 
@@ -48,6 +57,10 @@ export const EmployeesPage: React.FC = () => {
   const [createdEmployee, setCreatedEmployee] = useState<CreateEmployeeInput | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Modal de edición de empleado
+  const [editModalEmployee, setEditModalEmployee] = useState<Profile | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Modal de confirmación para Habilitar / Inhabilitar
   const [activeConfirmModal, setActiveConfirmModal] = useState<ToggleActiveModalState>({
@@ -77,6 +90,50 @@ export const EmployeesPage: React.FC = () => {
 
       setSubmitting(false);
       return result;
+    },
+    [toast, refreshEmployees]
+  );
+
+  // Actualizar información completa del empleado (nombre, correo, contraseña, rol, estado)
+  const handleUpdateEmployee = useCallback(
+    async (
+      empId: string,
+      data: EmployeeEditFormData
+    ): Promise<{ error: Error | null; rpcMissing?: boolean }> => {
+      try {
+        setEditSubmitting(true);
+        const result = await updateEmployee({
+          id: empId,
+          full_name: data.full_name,
+          email: data.email,
+          password: data.password,
+          role: data.role,
+          active: data.active,
+        });
+
+        if (result.error) {
+          if (result.rpcMissing) {
+            toast.info('Actualización parcial', result.error.message);
+            await refreshEmployees();
+            return result;
+          }
+          toast.error('Error al actualizar empleado', result.error.message);
+          return result;
+        }
+
+        toast.success(
+          'Empleado actualizado',
+          `Se guardaron los cambios de ${data.full_name.trim()} exitosamente`
+        );
+        await refreshEmployees();
+        return { error: null };
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error inesperado';
+        toast.error('Error', msg);
+        return { error: new Error(msg) };
+      } finally {
+        setEditSubmitting(false);
+      }
     },
     [toast, refreshEmployees]
   );
@@ -378,43 +435,57 @@ export const EmployeesPage: React.FC = () => {
                   </div>
 
                   {/* Botones de acción directos */}
-                  {!isCurrentUser && (
-                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1a2333] w-full sm:w-auto justify-end">
-                      {/* Cambiar rol */}
-                      <button
-                        type="button"
-                        onClick={() => handleToggleRole(emp)}
-                        disabled={isUpdating}
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#161f2c] border border-[#24334a] text-slate-300 hover:text-white hover:bg-[#1e2a3c] transition-colors active:scale-95 disabled:opacity-50"
-                        title={emp.role === 'admin' ? 'Cambiar a Empleado regular' : 'Hacer Administrador'}
-                      >
-                        {emp.role === 'admin' ? 'Hacer Empleado' : 'Hacer Admin'}
-                      </button>
+                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1a2333] w-full sm:w-auto justify-end flex-wrap">
+                    {/* Botón Editar Información */}
+                    <button
+                      type="button"
+                      onClick={() => setEditModalEmployee(emp)}
+                      disabled={isUpdating || editSubmitting}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#141d2b] border border-[#23354d] text-slate-200 hover:text-white hover:bg-[#1a273b] hover:border-blue-500/50 transition-colors active:scale-95 disabled:opacity-50"
+                      title="Editar información del empleado"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Editar</span>
+                    </button>
 
-                      {/* Botón de Habilitar / Inhabilitar abre el modal estilizado */}
-                      {emp.active ? (
+                    {!isCurrentUser && (
+                      <>
+                        {/* Cambiar rol */}
                         <button
                           type="button"
-                          onClick={() => promptToggleActive(emp)}
+                          onClick={() => handleToggleRole(emp)}
                           disabled={isUpdating}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-950/40 border border-rose-500/30 text-rose-300 hover:bg-rose-900/50 hover:text-rose-100 transition-colors active:scale-95 disabled:opacity-50"
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#161f2c] border border-[#24334a] text-slate-300 hover:text-white hover:bg-[#1e2a3c] transition-colors active:scale-95 disabled:opacity-50"
+                          title={emp.role === 'admin' ? 'Cambiar a Empleado regular' : 'Hacer Administrador'}
                         >
-                          <UserX className="w-3.5 h-3.5" />
-                          Inhabilitar
+                          {emp.role === 'admin' ? 'Hacer Empleado' : 'Hacer Admin'}
                         </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => promptToggleActive(emp)}
-                          disabled={isUpdating}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/60 hover:text-emerald-100 transition-colors active:scale-95 disabled:opacity-50"
-                        >
-                          <UserCheck className="w-3.5 h-3.5" />
-                          Habilitar acceso
-                        </button>
-                      )}
-                    </div>
-                  )}
+
+                        {/* Botón de Habilitar / Inhabilitar abre el modal estilizado */}
+                        {emp.active ? (
+                          <button
+                            type="button"
+                            onClick={() => promptToggleActive(emp)}
+                            disabled={isUpdating}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-950/40 border border-rose-500/30 text-rose-300 hover:bg-rose-900/50 hover:text-rose-100 transition-colors active:scale-95 disabled:opacity-50"
+                          >
+                            <UserX className="w-3.5 h-3.5" />
+                            Inhabilitar
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => promptToggleActive(emp)}
+                            disabled={isUpdating}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/60 hover:text-emerald-100 transition-colors active:scale-95 disabled:opacity-50"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            Habilitar acceso
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             );
@@ -478,6 +549,16 @@ export const EmployeesPage: React.FC = () => {
         onCancel={() =>
           setActiveConfirmModal({ isOpen: false, emp: null, targetActive: false })
         }
+      />
+
+      {/* Modal para editar información de empleado */}
+      <EmployeeEditModal
+        isOpen={Boolean(editModalEmployee)}
+        employee={editModalEmployee}
+        isCurrentUser={editModalEmployee?.id === currentProfile?.id}
+        onClose={() => setEditModalEmployee(null)}
+        onSubmit={handleUpdateEmployee}
+        submitting={editSubmitting}
       />
     </div>
   );

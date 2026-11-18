@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useSalesSync } from '../context/SalesSyncContext';
 import { getDateRangeForDay, getDateRangeForMonth } from '../lib/timezone';
-import type { Sale, CreateSaleInput, SalesFiltersState } from '../types';
+import type { Sale, CreateSaleInput, UpdateSaleInput, SalesFiltersState } from '../types';
 
 export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) {
   const { user } = useAuth();
@@ -217,6 +217,83 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
     }
   };
 
+  const updateSale = async (
+    saleId: string,
+    input: UpdateSaleInput
+  ): Promise<{ data: Sale | null; error: Error | null }> => {
+    if (!isSupabaseConfigured()) {
+      return { data: null, error: new Error('Supabase no está configurado') };
+    }
+
+    try {
+      setSubmitting(true);
+
+      const cleanedName = input.product_name.trim();
+      if (!cleanedName) {
+        throw new Error('El nombre del producto es obligatorio');
+      }
+
+      const qty = Math.floor(Number(input.quantity));
+      if (isNaN(qty) || qty <= 0) {
+        throw new Error('La cantidad debe ser un número entero positivo');
+      }
+
+      const price = Number(input.unit_price);
+      if (input.unit_price === null || input.unit_price === undefined || isNaN(price) || price <= 0) {
+        throw new Error('El precio unitario es obligatorio y debe ser mayor a 0');
+      }
+
+      const calculatedTotal = Math.round(qty * price * 100) / 100;
+
+      const { data, error: updateErr } = await supabase
+        .from('sales')
+        .update({
+          product_name: cleanedName,
+          quantity: qty,
+          unit_price: price,
+          total_amount: calculatedTotal,
+          notes: input.notes?.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', saleId)
+        .select(`
+          id,
+          product_name,
+          quantity,
+          unit_price,
+          total_amount,
+          notes,
+          employee_id,
+          created_at,
+          updated_at,
+          profiles (
+            id,
+            full_name,
+            email,
+            role
+          )
+        `)
+        .single();
+
+      if (updateErr) {
+        throw updateErr;
+      }
+
+      const profileObj = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
+      const updatedSale = { ...data, profiles: profileObj } as Sale;
+
+      // Disparar sincronización global instantánea
+      triggerRefresh();
+
+      return { data: updatedSale, error: null };
+    } catch (err: unknown) {
+      const errObj = err instanceof Error ? err : new Error('Error al actualizar la venta');
+      return { data: null, error: errObj };
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const deleteSale = async (saleId: string): Promise<{ error: Error | null }> => {
     if (!isSupabaseConfigured()) {
       return { error: new Error('Supabase no está configurado') };
@@ -257,6 +334,7 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
     clearFilters,
     refreshSales: fetchSales,
     createSale,
+    updateSale,
     deleteSale,
   };
 }

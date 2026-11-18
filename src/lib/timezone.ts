@@ -105,6 +105,21 @@ export function getDateRangeForMonth(monthStr: string): { startIso: string; endI
 }
 
 /**
+ * Retorna el rango UTC exacto para un rango de fechas personalizado en Bolivia (YYYY-MM-DD a YYYY-MM-DD)
+ */
+export function getDateRangeCustom(
+  startDateStr: string,
+  endDateStr: string
+): { startIso: string; endIso: string } {
+  const startIso = `${startDateStr}T00:00:00.000-04:00`;
+  const endIso = `${endDateStr}T23:59:59.999-04:00`;
+  return {
+    startIso: new Date(startIso).toISOString(),
+    endIso: new Date(endIso).toISOString(),
+  };
+}
+
+/**
  * Determina si una fecha corresponde al día de hoy en Bolivia
  */
 export function isTodayBolivia(isoString: string): boolean {

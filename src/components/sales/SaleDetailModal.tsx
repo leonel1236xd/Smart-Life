@@ -10,6 +10,7 @@ import {
   Clock,
   FileText,
   Trash2,
+  Pencil,
   Receipt,
   Shield,
   ShieldCheck,
@@ -28,6 +29,8 @@ interface SaleDetailModalProps {
   onClose: () => void;
   canDelete?: boolean;
   onDelete?: (saleId: string) => void;
+  canEdit?: boolean;
+  onEdit?: (sale: Sale) => void;
 }
 
 export const SaleDetailModal: React.FC<SaleDetailModalProps> = ({
@@ -36,6 +39,8 @@ export const SaleDetailModal: React.FC<SaleDetailModalProps> = ({
   onClose,
   canDelete = false,
   onDelete,
+  canEdit = false,
+  onEdit,
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -245,18 +250,32 @@ export const SaleDetailModal: React.FC<SaleDetailModalProps> = ({
 
               {/* Footer de Acciones */}
               <div className="flex items-center justify-between gap-2.5 px-4 sm:px-6 py-3.5 border-t border-[#1b2535] bg-[#0c111a]">
-                {canDelete && onDelete ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 border border-rose-500/30 transition-colors active:scale-95"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Eliminar
-                  </button>
-                ) : (
-                  <div />
-                )}
+                <div className="flex items-center gap-2">
+                  {canEdit && onEdit && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onEdit(sale);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-blue-400 hover:text-blue-200 hover:bg-blue-950/40 border border-blue-500/30 transition-colors active:scale-95"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Modificar
+                    </button>
+                  )}
+
+                  {canDelete && onDelete && (
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 border border-rose-500/30 transition-colors active:scale-95"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Eliminar
+                    </button>
+                  )}
+                </div>
 
                 <Button variant="primary" size="md" onClick={onClose} className="min-w-[100px]">
                   Cerrar

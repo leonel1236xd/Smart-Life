@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Trash2, Eye } from 'lucide-react';
+import { ShoppingBag, Trash2, Eye, Pencil } from 'lucide-react';
 import type { Sale } from '../../types';
 import { formatDateBolivia, formatTimeBolivia } from '../../lib/timezone';
 import { formatCurrency } from '../../lib/formatters';
@@ -12,6 +12,8 @@ interface SalesTableProps {
   loading: boolean;
   showDelete?: boolean;
   onDelete?: (saleId: string) => void;
+  showEdit?: boolean;
+  onEdit?: (sale: Sale) => void;
   onClick?: (sale: Sale) => void;
 }
 
@@ -20,6 +22,8 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   loading,
   showDelete = false,
   onDelete,
+  showEdit = false,
+  onEdit,
   onClick,
 }) => {
   if (loading) {
@@ -83,7 +87,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                 Hora
               </th>
               <th className="text-right py-3.5 px-4 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Acción
+                Acciones
               </th>
             </tr>
           </thead>
@@ -143,6 +147,20 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                     >
                       <Eye className="w-4 h-4" />
                     </button>
+
+                    {showEdit && onEdit && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(sale);
+                        }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-950/40 transition-colors active:scale-95"
+                        title={`Modificar venta de ${sale.product_name}`}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
 
                     {showDelete && onDelete && (
                       <button

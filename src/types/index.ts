@@ -35,6 +35,13 @@ export interface CreateSaleInput {
   notes?: string | null;
 }
 
+export interface UpdateSaleInput {
+  product_name: string;
+  quantity: number;
+  unit_price: number | null;
+  notes?: string | null;
+}
+
 export interface SalesFiltersState {
   day?: string; // YYYY-MM-DD
   month?: string; // YYYY-MM
