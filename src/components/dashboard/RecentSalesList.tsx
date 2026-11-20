@@ -40,8 +40,8 @@ export const RecentSalesList: React.FC<RecentSalesListProps> = ({
   if (sales.length === 0) {
     return (
       <EmptyState
-        title="Sin ventas recientes"
-        description="Las ventas que registres aparecerán aquí."
+        title="Sin ventas hoy"
+        description="Aún no se han registrado ventas durante el día de hoy."
         icon={<ShoppingBag className="w-7 h-7" />}
       />
     );

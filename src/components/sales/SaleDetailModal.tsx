@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
-  Package,
   Hash,
   DollarSign,
   User,
@@ -15,12 +14,16 @@ import {
   Shield,
   ShieldCheck,
   AlertTriangle,
+  Coins,
+  Laptop,
+  Headphones,
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { formatCurrency } from '../../lib/formatters';
 import { formatDateBolivia, formatTimeBolivia } from '../../lib/timezone';
+import { getSaleCategory, getSaleCommission } from '../../lib/commissions';
 import type { Sale } from '../../types';
 
 interface SaleDetailModalProps {
@@ -147,12 +150,25 @@ export const SaleDetailModal: React.FC<SaleDetailModalProps> = ({
                 <div className="p-3.5 sm:p-4 rounded-2xl bg-[#090d14] border border-[#1b2535] space-y-3">
                   <div className="flex items-start gap-2.5">
                     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#16202e] border border-[#23334a] flex items-center justify-center text-blue-400 shrink-0">
-                      <Package className="w-4 h-4 sm:w-5 sm:h-5" />
+                      {getSaleCategory(sale) === 'laptop' ? (
+                        <Laptop className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                      ) : (
+                        <Headphones className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide">
-                        Producto / Accesorio
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide">
+                          Producto / Accesorio
+                        </p>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${
+                          getSaleCategory(sale) === 'laptop'
+                            ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
+                            : 'bg-blue-950/60 text-blue-300 border-blue-500/40'
+                        }`}>
+                          {getSaleCategory(sale) === 'laptop' ? 'Laptop (+50 Bs./ud)' : 'Accesorio (+5 Bs./ud)'}
+                        </span>
+                      </div>
                       <p className="text-sm sm:text-base font-bold text-white mt-0.5 break-words">
                         {sale.product_name}
                       </p>
@@ -177,6 +193,17 @@ export const SaleDetailModal: React.FC<SaleDetailModalProps> = ({
                         {sale.unit_price ? formatCurrency(sale.unit_price) : '—'}
                       </p>
                     </div>
+                  </div>
+
+                  {/* Comisión del vendedor por esta venta */}
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                    <div className="flex items-center gap-1.5 text-xs text-amber-200 font-semibold">
+                      <Coins className="w-4 h-4 text-amber-400" />
+                      <span>Comisión para el vendedor:</span>
+                    </div>
+                    <span className="text-xs sm:text-sm font-extrabold text-amber-300">
+                      +{formatCurrency(getSaleCommission(sale))}
+                    </span>
                   </div>
                 </div>
 

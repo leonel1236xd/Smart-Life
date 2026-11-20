@@ -1,5 +1,18 @@
 export type UserRole = 'admin' | 'employee';
 
+export type ProductCategory = 'laptop' | 'accesorio';
+
+export const COMMISSION_RATES: Record<ProductCategory, number> = {
+  accesorio: 5,
+  laptop: 50,
+};
+
+export function calculateCommission(category: ProductCategory, quantity: number): number {
+  const rate = COMMISSION_RATES[category] || 0;
+  const qty = Math.max(0, Math.floor(quantity));
+  return rate * qty;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -13,6 +26,8 @@ export interface Profile {
 export interface Sale {
   id: string;
   product_name: string;
+  category?: ProductCategory;
+  commission_amount?: number;
   quantity: number;
   unit_price: number | null;
   total_amount: number | null;
@@ -30,16 +45,20 @@ export interface Sale {
 
 export interface CreateSaleInput {
   product_name: string;
+  category: ProductCategory;
   quantity: number;
   unit_price?: number | null;
   notes?: string | null;
+  commission_amount?: number;
 }
 
 export interface UpdateSaleInput {
   product_name: string;
+  category?: ProductCategory;
   quantity: number;
   unit_price: number | null;
   notes?: string | null;
+  commission_amount?: number;
 }
 
 export interface SalesFiltersState {
@@ -61,4 +80,26 @@ export interface SalesStats {
   overall_sales_count: number;
   overall_units_sold: number;
   overall_total_amount: number;
+}
+
+export interface EmployeeCommissionSummary {
+  employee_id: string;
+  employee_name: string;
+  employee_email?: string;
+  role?: UserRole;
+  laptop_units: number;
+  accesorio_units: number;
+  total_units: number;
+  total_sales_count: number;
+  total_commission: number;
+  sales: Sale[];
+}
+
+export interface DailyCommissionsResult {
+  date: string; // YYYY-MM-DD
+  total_store_commission: number;
+  total_store_laptops: number;
+  total_store_accesorios: number;
+  by_employee: Record<string, EmployeeCommissionSummary>;
+  employee_list: EmployeeCommissionSummary[];
 }

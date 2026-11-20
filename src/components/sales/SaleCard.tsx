@@ -1,9 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingBag, User, Clock, Calendar, Trash2, Pencil, ChevronRight } from 'lucide-react';
+import { User, Clock, Calendar, Trash2, Pencil, ChevronRight, Laptop, Headphones, Coins } from 'lucide-react';
 import type { Sale } from '../../types';
 import { formatDateBolivia, formatTimeBolivia } from '../../lib/timezone';
 import { formatCurrency } from '../../lib/formatters';
+import { getSaleCategory, getSaleCommission } from '../../lib/commissions';
 
 interface SaleCardProps {
   sale: Sale;
@@ -36,12 +37,25 @@ export const SaleCard: React.FC<SaleCardProps> = ({
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-blue-950/50 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-            <ShoppingBag className="w-4 h-4 text-blue-400" />
+            {getSaleCategory(sale) === 'laptop' ? (
+              <Laptop className="w-4 h-4 text-emerald-400" />
+            ) : (
+              <Headphones className="w-4 h-4 text-blue-400" />
+            )}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-white truncate group-hover:text-blue-300 transition-colors">
-              {sale.product_name}
-            </p>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className="text-sm font-semibold text-white truncate group-hover:text-blue-300 transition-colors">
+                {sale.product_name}
+              </p>
+              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                getSaleCategory(sale) === 'laptop'
+                  ? 'bg-emerald-950/70 text-emerald-300 border-emerald-500/40'
+                  : 'bg-blue-950/70 text-blue-300 border-blue-500/40'
+              }`}>
+                {getSaleCategory(sale) === 'laptop' ? 'Laptop' : 'Accesorio'}
+              </span>
+            </div>
             {sale.notes && (
               <p className="text-[11px] text-slate-500 truncate mt-0.5">{sale.notes}</p>
             )}
@@ -55,6 +69,10 @@ export const SaleCard: React.FC<SaleCardProps> = ({
           {sale.total_amount !== null && (
             <p className="text-xs text-emerald-400 font-bold">{formatCurrency(sale.total_amount)}</p>
           )}
+          <p className="text-[10px] text-amber-300 font-semibold mt-0.5 flex items-center justify-end gap-0.5">
+            <Coins className="w-2.5 h-2.5 text-amber-400" />
+            +{formatCurrency(getSaleCommission(sale))}
+          </p>
         </div>
       </div>
 

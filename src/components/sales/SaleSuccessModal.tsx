@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2,
-  Package,
   Hash,
   DollarSign,
   User,
@@ -11,10 +10,14 @@ import {
   PlusCircle,
   Check,
   Receipt,
+  Coins,
+  Laptop,
+  Headphones,
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { formatCurrency } from '../../lib/formatters';
 import { formatDateBolivia, formatTimeBolivia } from '../../lib/timezone';
+import { getSaleCategory, getSaleCommission } from '../../lib/commissions';
 import type { Sale } from '../../types';
 
 interface SaleSuccessModalProps {
@@ -142,10 +145,23 @@ export const SaleSuccessModal: React.FC<SaleSuccessModalProps> = ({
               {/* Producto */}
               <div className="flex items-start gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-blue-950/50 border border-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                  <Package className="w-4 h-4 text-blue-400" />
+                  {getSaleCategory(sale) === 'laptop' ? (
+                    <Laptop className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <Headphones className="w-4 h-4 text-blue-400" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wide">Producto</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wide">Producto</p>
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${
+                      getSaleCategory(sale) === 'laptop'
+                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
+                        : 'bg-blue-950/60 text-blue-300 border-blue-500/40'
+                    }`}>
+                      {getSaleCategory(sale) === 'laptop' ? 'Laptop' : 'Accesorio'}
+                    </span>
+                  </div>
                   <p className="text-sm font-bold text-white truncate">{sale.product_name}</p>
                 </div>
               </div>
@@ -171,11 +187,22 @@ export const SaleSuccessModal: React.FC<SaleSuccessModalProps> = ({
                 </div>
 
                 <div className="text-right">
-                  <p className="text-[10px] text-slate-400 font-medium">Total</p>
+                  <p className="text-[10px] text-slate-400 font-medium">Total Cobrado</p>
                   <p className="text-sm sm:text-base font-extrabold text-emerald-400 mt-0.5">
                     {sale.total_amount ? formatCurrency(sale.total_amount) : '—'}
                   </p>
                 </div>
+              </div>
+
+              {/* Comisión ganada */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                <div className="flex items-center gap-1.5 text-xs text-amber-200 font-semibold">
+                  <Coins className="w-4 h-4 text-amber-400" />
+                  <span>Comisión ganada:</span>
+                </div>
+                <span className="text-xs sm:text-sm font-extrabold text-amber-300">
+                  +{formatCurrency(getSaleCommission(sale))}
+                </span>
               </div>
 
               {/* Info Empleado y Fecha */}

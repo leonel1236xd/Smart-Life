@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useSalesSync } from '../context/SalesSyncContext';
 import { getDateRangeForDay, getDateRangeForMonth } from '../lib/timezone';
+import { getSaleCategory, getSaleCommission, calculateCommission } from '../lib/commissions';
 import type { Sale, CreateSaleInput, UpdateSaleInput, SalesFiltersState } from '../types';
 
 export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) {
@@ -16,6 +17,16 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
   const [filters, setFilters] = useState<SalesFiltersState>(initialFilters);
   const [page, setPage] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number>(0);
+
+  // Sincronizar filtros si initialFilters cambia externamente
+  useEffect(() => {
+    setFilters(initialFilters);
+  }, [
+    initialFilters.day,
+    initialFilters.month,
+    initialFilters.employee_id,
+    initialFilters.product_search,
+  ]);
 
   const fetchSales = useCallback(async () => {
     if (!isSupabaseConfigured() || !user) {
@@ -33,6 +44,8 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
         .select(`
           id,
           product_name,
+          category,
+          commission_amount,
           quantity,
           unit_price,
           total_amount,
@@ -78,23 +91,77 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
       const to = from + pageSize - 1;
       query = query.range(from, to);
 
-      const { data, count, error: fetchErr } = await query;
+      let rawData: unknown[] = [];
+      let finalCount = 0;
+      const primaryRes = await query;
+      let fetchErr = primaryRes.error;
+
+      // Fallback si la columna category/commission_amount aún no existe en Supabase
+      if (!fetchErr) {
+        rawData = (primaryRes.data || []) as unknown[];
+        finalCount = primaryRes.count || 0;
+      } else if (fetchErr.code === '42703') {
+        let fallbackQuery = supabase
+          .from('sales')
+          .select(`
+            id,
+            product_name,
+            quantity,
+            unit_price,
+            total_amount,
+            notes,
+            employee_id,
+            created_at,
+            updated_at,
+            profiles (
+              id,
+              full_name,
+              email,
+              role
+            )
+          `, { count: 'exact' });
+
+        if (filters.day) {
+          const { startIso, endIso } = getDateRangeForDay(filters.day);
+          fallbackQuery = fallbackQuery.gte('created_at', startIso).lte('created_at', endIso);
+        } else if (filters.month) {
+          const { startIso, endIso } = getDateRangeForMonth(filters.month);
+          fallbackQuery = fallbackQuery.gte('created_at', startIso).lte('created_at', endIso);
+        }
+        if (filters.employee_id) {
+          fallbackQuery = fallbackQuery.eq('employee_id', filters.employee_id);
+        }
+        if (filters.product_search && filters.product_search.trim()) {
+          fallbackQuery = fallbackQuery.ilike('product_name', `%${filters.product_search.trim()}%`);
+        }
+        fallbackQuery = fallbackQuery.order('created_at', { ascending: false }).range(from, to);
+
+        const fallbackRes = await fallbackQuery;
+        rawData = (fallbackRes.data || []) as unknown[];
+        finalCount = fallbackRes.count || 0;
+        fetchErr = fallbackRes.error;
+      }
 
       if (fetchErr) {
         throw fetchErr;
       }
 
-      // Normalizar estructura de profiles si viene como arreglo
-      const formattedSales: Sale[] = (data || []).map((item) => {
+      // Normalizar estructura de profiles y calcular comisiones / categorías
+      const formattedSales: Sale[] = rawData.map((rawItem) => {
+        const item = rawItem as any;
         const profileObj = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+        const category = getSaleCategory(item);
+        const commission_amount = getSaleCommission(item);
         return {
           ...item,
+          category,
+          commission_amount,
           profiles: profileObj,
         } as Sale;
       });
 
       setSales(formattedSales);
-      setTotalCount(count || 0);
+      setTotalCount(finalCount);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al obtener ventas';
       setError(message);
@@ -169,19 +236,29 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
 
       const calculatedTotal = Math.round(qty * price * 100) / 100;
 
-      const { data, error: insertErr } = await supabase
+      const category = input.category || 'accesorio';
+      const commissionAmount = input.commission_amount ?? calculateCommission(category, qty);
+
+      const insertPayload: Record<string, unknown> = {
+        product_name: cleanedName,
+        category,
+        commission_amount: commissionAmount,
+        quantity: qty,
+        unit_price: price,
+        total_amount: calculatedTotal,
+        notes: input.notes?.trim() || null,
+        employee_id: user.id,
+      };
+
+      let insertedRow: any = null;
+      const primaryInsert = await supabase
         .from('sales')
-        .insert({
-          product_name: cleanedName,
-          quantity: qty,
-          unit_price: price,
-          total_amount: calculatedTotal,
-          notes: input.notes?.trim() || null,
-          employee_id: user.id,
-        })
+        .insert(insertPayload)
         .select(`
           id,
           product_name,
+          category,
+          commission_amount,
           quantity,
           unit_price,
           total_amount,
@@ -198,12 +275,50 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
         `)
         .single();
 
-      if (insertErr) {
-        throw insertErr;
+      let insertErr = primaryInsert.error;
+      if (!insertErr && primaryInsert.data) {
+        insertedRow = primaryInsert.data;
+      } else if (insertErr && insertErr.code === '42703') {
+        delete insertPayload.category;
+        delete insertPayload.commission_amount;
+
+        const retryResult = await supabase
+          .from('sales')
+          .insert(insertPayload)
+          .select(`
+            id,
+            product_name,
+            quantity,
+            unit_price,
+            total_amount,
+            notes,
+            employee_id,
+            created_at,
+            updated_at,
+            profiles (
+              id,
+              full_name,
+              email,
+              role
+            )
+          `)
+          .single();
+
+        insertedRow = retryResult.data;
+        insertErr = retryResult.error;
       }
 
-      const profileObj = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
-      const createdSale = { ...data, profiles: profileObj } as Sale;
+      if (insertErr || !insertedRow) {
+        throw insertErr || new Error('No se pudo registrar la venta');
+      }
+
+      const profileObj = Array.isArray(insertedRow.profiles) ? insertedRow.profiles[0] : insertedRow.profiles;
+      const createdSale = {
+        ...insertedRow,
+        category: insertedRow.category || category,
+        commission_amount: insertedRow.commission_amount ?? commissionAmount,
+        profiles: profileObj,
+      } as Sale;
 
       // Disparar sincronización global instantánea
       triggerRefresh();
@@ -245,20 +360,40 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
 
       const calculatedTotal = Math.round(qty * price * 100) / 100;
 
-      const { data, error: updateErr } = await supabase
+      const category = input.category;
+      const commissionAmount =
+        input.commission_amount !== undefined
+          ? input.commission_amount
+          : category
+          ? calculateCommission(category, qty)
+          : undefined;
+
+      const updatePayload: Record<string, unknown> = {
+        product_name: cleanedName,
+        quantity: qty,
+        unit_price: price,
+        total_amount: calculatedTotal,
+        notes: input.notes?.trim() || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (category) {
+        updatePayload.category = category;
+      }
+      if (commissionAmount !== undefined) {
+        updatePayload.commission_amount = commissionAmount;
+      }
+
+      let updatedRow: any = null;
+      const primaryUpdate = await supabase
         .from('sales')
-        .update({
-          product_name: cleanedName,
-          quantity: qty,
-          unit_price: price,
-          total_amount: calculatedTotal,
-          notes: input.notes?.trim() || null,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', saleId)
         .select(`
           id,
           product_name,
+          category,
+          commission_amount,
           quantity,
           unit_price,
           total_amount,
@@ -275,12 +410,51 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
         `)
         .single();
 
-      if (updateErr) {
-        throw updateErr;
+      let updateErr = primaryUpdate.error;
+      if (!updateErr && primaryUpdate.data) {
+        updatedRow = primaryUpdate.data;
+      } else if (updateErr && updateErr.code === '42703') {
+        delete updatePayload.category;
+        delete updatePayload.commission_amount;
+
+        const retryResult = await supabase
+          .from('sales')
+          .update(updatePayload)
+          .eq('id', saleId)
+          .select(`
+            id,
+            product_name,
+            quantity,
+            unit_price,
+            total_amount,
+            notes,
+            employee_id,
+            created_at,
+            updated_at,
+            profiles (
+              id,
+              full_name,
+              email,
+              role
+            )
+          `)
+          .single();
+
+        updatedRow = retryResult.data;
+        updateErr = retryResult.error;
       }
 
-      const profileObj = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
-      const updatedSale = { ...data, profiles: profileObj } as Sale;
+      if (updateErr || !updatedRow) {
+        throw updateErr || new Error('No se pudo actualizar la venta');
+      }
+
+      const profileObj = Array.isArray(updatedRow.profiles) ? updatedRow.profiles[0] : updatedRow.profiles;
+      const updatedSale = {
+        ...updatedRow,
+        category: updatedRow.category || category || getSaleCategory(updatedRow),
+        commission_amount: updatedRow.commission_amount ?? commissionAmount ?? getSaleCommission(updatedRow),
+        profiles: profileObj,
+      } as Sale;
 
       // Disparar sincronización global instantánea
       triggerRefresh();
