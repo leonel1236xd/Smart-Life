@@ -237,7 +237,7 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
       const calculatedTotal = Math.round(qty * price * 100) / 100;
 
       const category = input.category || 'accesorio';
-      const commissionAmount = input.commission_amount ?? calculateCommission(category, qty);
+      const commissionAmount = input.commission_amount ?? calculateCommission(category, qty, price);
 
       const insertPayload: Record<string, unknown> = {
         product_name: cleanedName,
@@ -278,9 +278,13 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
       let insertErr = primaryInsert.error;
       if (!insertErr && primaryInsert.data) {
         insertedRow = primaryInsert.data;
-      } else if (insertErr && insertErr.code === '42703') {
-        delete insertPayload.category;
-        delete insertPayload.commission_amount;
+      } else if (insertErr && (insertErr.code === '42703' || insertErr.code === '23514')) {
+        if (insertErr.code === '23514') {
+          insertPayload.category = 'accesorio';
+        } else {
+          delete insertPayload.category;
+          delete insertPayload.commission_amount;
+        }
 
         const retryResult = await supabase
           .from('sales')
@@ -365,7 +369,7 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
         input.commission_amount !== undefined
           ? input.commission_amount
           : category
-          ? calculateCommission(category, qty)
+          ? calculateCommission(category, qty, price)
           : undefined;
 
       const updatePayload: Record<string, unknown> = {
@@ -413,9 +417,13 @@ export function useSales(initialFilters: SalesFiltersState = {}, pageSize = 15) 
       let updateErr = primaryUpdate.error;
       if (!updateErr && primaryUpdate.data) {
         updatedRow = primaryUpdate.data;
-      } else if (updateErr && updateErr.code === '42703') {
-        delete updatePayload.category;
-        delete updatePayload.commission_amount;
+      } else if (updateErr && (updateErr.code === '42703' || updateErr.code === '23514')) {
+        if (updateErr.code === '23514') {
+          updatePayload.category = 'accesorio';
+        } else {
+          delete updatePayload.category;
+          delete updatePayload.commission_amount;
+        }
 
         const retryResult = await supabase
           .from('sales')

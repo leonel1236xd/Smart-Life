@@ -14,13 +14,16 @@ import {
   User,
   Calendar,
   Clock,
-  Laptop,
-  Headphones,
   Coins,
+  ChevronDown,
 } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters';
 import { formatDateBolivia, formatTimeBolivia } from '../../lib/timezone';
-import { calculateCommission, getSaleCategory } from '../../lib/commissions';
+import {
+  calculateCommission,
+  getSaleCategory,
+  PRODUCT_CATEGORIES_SELECT_OPTIONS,
+} from '../../lib/commissions';
 import type { ProductCategory, Sale, UpdateSaleInput } from '../../types';
 
 interface SaleEditModalProps {
@@ -121,7 +124,7 @@ export const SaleEditModal: React.FC<SaleEditModalProps> = ({
 
     const qty = Math.max(1, Math.floor(Number(formData.quantity) || 1));
     const category: ProductCategory = formData.category || 'accesorio';
-    const commAmount = calculateCommission(category, qty);
+    const commAmount = calculateCommission(category, qty, Number(formData.unit_price) || 0);
 
     const payload: UpdateSaleInput = {
       ...formData,
@@ -164,8 +167,11 @@ export const SaleEditModal: React.FC<SaleEditModalProps> = ({
   const totalEstimado = quantityNum > 0 && priceNum > 0 ? quantityNum * priceNum : null;
 
   const currentCategory: ProductCategory = formData.category || 'accesorio';
-  const comisionUnitaria = currentCategory === 'laptop' ? 50 : 5;
-  const comisionTotalEstimada = quantityNum > 0 ? quantityNum * comisionUnitaria : 0;
+  const comisionTotalEstimada = calculateCommission(
+    currentCategory,
+    quantityNum,
+    priceNum
+  );
 
   return (
     <Modal
@@ -210,11 +216,14 @@ export const SaleEditModal: React.FC<SaleEditModalProps> = ({
           autoComplete="off"
         />
 
-        {/* Selector de Categoría: Accesorio (+5 Bs.) vs Laptop (+50 Bs.) */}
+        {/* Selector de Categoría (ComboBox) */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-300 tracking-wide flex items-center justify-between">
+          <label
+            htmlFor="edit-sale-category"
+            className="text-xs font-semibold text-slate-300 tracking-wide flex items-center justify-between"
+          >
             <span className="flex items-center gap-1.5">
-              <span>Tipo de artículo</span>
+              <span>Tipo de artículo / servicio</span>
               <span className="text-rose-400">*</span>
             </span>
             <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
@@ -223,76 +232,28 @@ export const SaleEditModal: React.FC<SaleEditModalProps> = ({
             </span>
           </label>
 
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleFieldChange('category', 'accesorio')}
-              className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all text-left ${
-                currentCategory === 'accesorio'
-                  ? 'bg-blue-950/70 border-blue-500 text-white shadow-md shadow-blue-950/40 ring-1 ring-blue-500/60'
-                  : 'bg-[#0c111a] border-[#222d3d] text-slate-400 hover:text-white hover:border-[#2f3d52]'
-              }`}
+          <div className="relative">
+            <select
+              id="edit-sale-category"
+              value={currentCategory}
+              onChange={(e) =>
+                handleFieldChange('category', e.target.value as ProductCategory)
+              }
+              className="w-full h-11 pl-3.5 pr-10 rounded-xl bg-[#0c111a] border border-[#222d3d] text-slate-100 text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0084FF]/40 focus:border-[#0084FF] transition-all"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                    currentCategory === 'accesorio'
-                      ? 'bg-blue-500/20 text-blue-400'
-                      : 'bg-[#151c28] text-slate-500'
-                  }`}
+              {PRODUCT_CATEGORIES_SELECT_OPTIONS.map((opt) => (
+                <option
+                  key={opt.value}
+                  value={opt.value}
+                  className="bg-[#0f1520] text-slate-100 py-1"
                 >
-                  <Headphones className="w-4 h-4" />
-                </div>
-                <div className="truncate">
-                  <p className="text-xs sm:text-sm font-semibold truncate">Accesorio</p>
-                  <p className="text-[10px] text-slate-400">Mouse, cables, etc.</p>
-                </div>
-              </div>
-              <span
-                className={`shrink-0 ml-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold ${
-                  currentCategory === 'accesorio'
-                    ? 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
-                    : 'bg-[#141b27] text-slate-400 border border-[#233144]'
-                }`}
-              >
-                +5 Bs.
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleFieldChange('category', 'laptop')}
-              className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all text-left ${
-                currentCategory === 'laptop'
-                  ? 'bg-emerald-950/70 border-emerald-500 text-white shadow-md shadow-emerald-950/40 ring-1 ring-emerald-500/60'
-                  : 'bg-[#0c111a] border-[#222d3d] text-slate-400 hover:text-white hover:border-[#2f3d52]'
-              }`}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                    currentCategory === 'laptop'
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'bg-[#151c28] text-slate-500'
-                  }`}
-                >
-                  <Laptop className="w-4 h-4" />
-                </div>
-                <div className="truncate">
-                  <p className="text-xs sm:text-sm font-semibold truncate">Laptop</p>
-                  <p className="text-[10px] text-slate-400">Equipos portátiles</p>
-                </div>
-              </div>
-              <span
-                className={`shrink-0 ml-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold ${
-                  currentCategory === 'laptop'
-                    ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/40'
-                    : 'bg-[#141b27] text-slate-400 border border-[#233144]'
-                }`}
-              >
-                +50 Bs.
-              </span>
-            </button>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+              <ChevronDown className="w-4 h-4" />
+            </div>
           </div>
         </div>
 

@@ -1,15 +1,37 @@
 export type UserRole = 'admin' | 'employee';
 
-export type ProductCategory = 'laptop' | 'accesorio';
+export type ProductCategory =
+  | 'laptop'
+  | 'accesorio'
+  | 'monitor'
+  | 'servicio_tecnico'
+  | 'impresora'
+  | 'tablet';
 
 export const COMMISSION_RATES: Record<ProductCategory, number> = {
-  accesorio: 5,
   laptop: 50,
+  accesorio: 5,
+  monitor: 20,
+  servicio_tecnico: 20, // Aplica cuando el monto unitario/total es >= 100 Bs
+  impresora: 10,
+  tablet: 20,
 };
 
-export function calculateCommission(category: ProductCategory, quantity: number): number {
-  const rate = COMMISSION_RATES[category] || 0;
+export function calculateCommission(
+  category: ProductCategory,
+  quantity: number,
+  unitPrice?: number | null
+): number {
   const qty = Math.max(0, Math.floor(quantity));
+  if (qty === 0) return 0;
+
+  if (category === 'servicio_tecnico') {
+    const price = typeof unitPrice === 'number' && !isNaN(unitPrice) ? unitPrice : 0;
+    // Servicios técnicos: igual o mayores a 100 bs reciben 20 bs por unidad, menores reciben 0 bs
+    return price >= 100 ? 20 * qty : 0;
+  }
+
+  const rate = COMMISSION_RATES[category] || 0;
   return rate * qty;
 }
 
@@ -89,6 +111,7 @@ export interface EmployeeCommissionSummary {
   role?: UserRole;
   laptop_units: number;
   accesorio_units: number;
+  category_units?: Record<ProductCategory, number>;
   total_units: number;
   total_sales_count: number;
   total_commission: number;
@@ -100,6 +123,8 @@ export interface DailyCommissionsResult {
   total_store_commission: number;
   total_store_laptops: number;
   total_store_accesorios: number;
+  total_store_units?: number;
+  total_store_category_units?: Record<ProductCategory, number>;
   by_employee: Record<string, EmployeeCommissionSummary>;
   employee_list: EmployeeCommissionSummary[];
 }

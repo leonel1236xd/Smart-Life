@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Coins,
-  Laptop,
-  Headphones,
   Users,
   ChevronRight,
   ArrowUpRight,
@@ -11,7 +9,8 @@ import {
 import { formatCurrency } from '../../lib/formatters';
 import { Skeleton } from '../common/Skeleton';
 import { CommissionsDetailModal } from './CommissionsDetailModal';
-import type { DailyCommissionsResult, EmployeeCommissionSummary, Sale } from '../../types';
+import { CATEGORIES_CONFIG } from '../../lib/commissions';
+import type { DailyCommissionsResult, EmployeeCommissionSummary, ProductCategory, Sale } from '../../types';
 
 interface CommissionsSummaryCardProps {
   loading: boolean;
@@ -49,8 +48,6 @@ export const CommissionsSummaryCard: React.FC<CommissionsSummaryCardProps> = ({
   // Vista para Empleado
   if (!isAdmin) {
     const totalComision = mySummary?.total_commission || 0;
-    const laptops = mySummary?.laptop_units || 0;
-    const accesorios = mySummary?.accesorio_units || 0;
     const totalArticulos = mySummary?.total_units || 0;
 
     return (
@@ -91,18 +88,20 @@ export const CommissionsSummaryCard: React.FC<CommissionsSummaryCardProps> = ({
                 </div>
 
                 {/* Desglose rápido */}
-                <div className="flex items-center gap-3 mt-2 text-xs text-slate-300 flex-wrap">
-                  <span className="flex items-center gap-1.5 bg-[#141d2c] px-2.5 py-1 rounded-lg border border-[#223147]">
-                    <Laptop className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Laptops (+50 Bs.):</span>
-                    <strong className="text-white">{laptops}</strong>
-                  </span>
-
-                  <span className="flex items-center gap-1.5 bg-[#141d2c] px-2.5 py-1 rounded-lg border border-[#223147]">
-                    <Headphones className="w-3.5 h-3.5 text-blue-400" />
-                    <span>Accesorios (+5 Bs.):</span>
-                    <strong className="text-white">{accesorios}</strong>
-                  </span>
+                <div className="flex items-center gap-2 mt-2 text-xs text-slate-300 flex-wrap">
+                  {Object.entries(mySummary?.category_units || {}).map(([catKey, qty]) => {
+                    if (qty <= 0) return null;
+                    const meta = CATEGORIES_CONFIG[catKey as ProductCategory];
+                    return (
+                      <span
+                        key={catKey}
+                        className="flex items-center gap-1.5 bg-[#141d2c] px-2.5 py-1 rounded-lg border border-[#223147]"
+                      >
+                        <span>{meta?.label || catKey}:</span>
+                        <strong className="text-white">{qty} ud.</strong>
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -165,7 +164,7 @@ export const CommissionsSummaryCard: React.FC<CommissionsSummaryCardProps> = ({
                   {formatCurrency(totalTienda)}
                 </span>
                 <span className="text-xs text-slate-400">
-                  ({laptopsTienda} laptops + {accesoriosTienda} accesorios)
+                  ({commissionsData.total_store_units ?? (laptopsTienda + accesoriosTienda)} { (commissionsData.total_store_units ?? (laptopsTienda + accesoriosTienda)) === 1 ? 'artículo vendido hoy' : 'artículos vendidos hoy' })
                 </span>
               </div>
             </div>

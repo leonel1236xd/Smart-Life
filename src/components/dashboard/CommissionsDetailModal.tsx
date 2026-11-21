@@ -5,15 +5,20 @@ import {
   Coins,
   Laptop,
   Headphones,
+  Monitor,
+  Wrench,
+  Printer,
+  Tablet,
   User,
   Clock,
   Package,
   Users,
+  ShoppingBag,
 } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters';
 import { formatTimeBolivia } from '../../lib/timezone';
-import { getSaleCategory, getSaleCommission } from '../../lib/commissions';
-import type { DailyCommissionsResult, Sale } from '../../types';
+import { getSaleCategory, getSaleCommission, CATEGORIES_CONFIG } from '../../lib/commissions';
+import type { DailyCommissionsResult, ProductCategory, Sale } from '../../types';
 
 interface CommissionsDetailModalProps {
   isOpen: boolean;
@@ -61,17 +66,28 @@ export const CommissionsDetailModal: React.FC<CommissionsDetailModalProps> = ({
     ? commissionsData.total_store_commission
     : activeEmployee?.total_commission || 0;
 
-  const currentLaptops = !isAdmin
-    ? mySummary?.laptop_units || 0
+  const currentTotalUnits = !isAdmin
+    ? mySummary?.total_units || 0
     : selectedEmployeeId === 'all'
-    ? commissionsData.total_store_laptops
-    : activeEmployee?.laptop_units || 0;
+    ? commissionsData.total_store_units ?? displayedSales.reduce((acc, s) => acc + (s.quantity || 1), 0)
+    : activeEmployee?.total_units || 0;
 
-  const currentAccesorios = !isAdmin
-    ? mySummary?.accesorio_units || 0
-    : selectedEmployeeId === 'all'
-    ? commissionsData.total_store_accesorios
-    : activeEmployee?.accesorio_units || 0;
+  const getCategoryIcon = (cat: ProductCategory) => {
+    switch (cat) {
+      case 'laptop':
+        return <Laptop className="w-4 h-4" />;
+      case 'monitor':
+        return <Monitor className="w-4 h-4" />;
+      case 'servicio_tecnico':
+        return <Wrench className="w-4 h-4" />;
+      case 'impresora':
+        return <Printer className="w-4 h-4" />;
+      case 'tablet':
+        return <Tablet className="w-4 h-4" />;
+      default:
+        return <Headphones className="w-4 h-4" />;
+    }
+  };
 
   return (
     <Modal
@@ -134,28 +150,28 @@ export const CommissionsDetailModal: React.FC<CommissionsDetailModalProps> = ({
             </p>
           </div>
 
-          {/* Laptops */}
-          <div className="p-3 rounded-xl bg-[#0f1520] border border-emerald-500/30 text-center">
-            <span className="text-[10px] text-emerald-400 uppercase font-semibold flex items-center justify-center gap-1">
-              <Laptop className="w-3 h-3" />
-              Laptops
+          {/* Artículos con comisión */}
+          <div className="p-3 rounded-xl bg-[#0f1520] border border-[#223044] text-center">
+            <span className="text-[10px] text-slate-300 uppercase font-semibold flex items-center justify-center gap-1">
+              <Package className="w-3 h-3 text-emerald-400" />
+              Artículos
             </span>
             <p className="text-base sm:text-lg font-bold text-white mt-0.5">
-              {currentLaptops} <span className="text-xs font-normal text-slate-400">ud.</span>
+              {currentTotalUnits} <span className="text-xs font-normal text-slate-400">ud.</span>
             </p>
-            <p className="text-[10px] text-emerald-400/80">+{currentLaptops * 50} Bs.</p>
+            <p className="text-[10px] text-slate-400">Total vendidos</p>
           </div>
 
-          {/* Accesorios */}
-          <div className="p-3 rounded-xl bg-[#0f1520] border border-blue-500/30 text-center">
-            <span className="text-[10px] text-blue-400 uppercase font-semibold flex items-center justify-center gap-1">
-              <Headphones className="w-3 h-3" />
-              Accesorios
+          {/* Ventas registradas */}
+          <div className="p-3 rounded-xl bg-[#0f1520] border border-[#223044] text-center">
+            <span className="text-[10px] text-slate-300 uppercase font-semibold flex items-center justify-center gap-1">
+              <ShoppingBag className="w-3 h-3 text-blue-400" />
+              Ventas
             </span>
             <p className="text-base sm:text-lg font-bold text-white mt-0.5">
-              {currentAccesorios} <span className="text-xs font-normal text-slate-400">ud.</span>
+              {displayedSales.length}
             </p>
-            <p className="text-[10px] text-blue-400/80">+{currentAccesorios * 5} Bs.</p>
+            <p className="text-[10px] text-slate-400">Registros de hoy</p>
           </div>
         </div>
 
@@ -175,7 +191,7 @@ export const CommissionsDetailModal: React.FC<CommissionsDetailModalProps> = ({
               <Package className="w-8 h-8 text-slate-600 mx-auto mb-2" />
               <p className="text-sm font-semibold text-slate-300">Sin comisiones registradas hoy</p>
               <p className="text-xs text-slate-500 mt-0.5">
-                Las ventas de laptops (+50 Bs.) y accesorios (+5 Bs.) realizadas hoy aparecerán aquí.
+                Las ventas y servicios registrados hoy aparecerán aquí.
               </p>
             </div>
           ) : (
@@ -183,7 +199,7 @@ export const CommissionsDetailModal: React.FC<CommissionsDetailModalProps> = ({
               {displayedSales.map((sale) => {
                 const category = getSaleCategory(sale);
                 const commission = getSaleCommission(sale);
-                const isLap = category === 'laptop';
+                const meta = CATEGORIES_CONFIG[category] || CATEGORIES_CONFIG.accesorio;
 
                 return (
                   <div
@@ -192,14 +208,8 @@ export const CommissionsDetailModal: React.FC<CommissionsDetailModalProps> = ({
                     className="flex items-center justify-between p-3 rounded-xl bg-[#0b1018] border border-[#1a2536] hover:border-blue-500/40 hover:bg-[#101724] transition-all cursor-pointer group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                          isLap
-                            ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-400'
-                            : 'bg-blue-950/70 border border-blue-500/40 text-blue-400'
-                        }`}
-                      >
-                        {isLap ? <Laptop className="w-4 h-4" /> : <Headphones className="w-4 h-4" />}
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-[#141d2c] border border-[#233146] text-amber-300">
+                        {getCategoryIcon(category)}
                       </div>
 
                       <div className="min-w-0">
@@ -208,13 +218,9 @@ export const CommissionsDetailModal: React.FC<CommissionsDetailModalProps> = ({
                             {sale.product_name}
                           </p>
                           <span
-                            className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                              isLap
-                                ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/30'
-                                : 'bg-blue-950/80 text-blue-300 border border-blue-500/30'
-                            }`}
+                            className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${meta.badgeClass}`}
                           >
-                            {isLap ? 'Laptop' : 'Accesorio'}
+                            {meta.label}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
@@ -223,18 +229,10 @@ export const CommissionsDetailModal: React.FC<CommissionsDetailModalProps> = ({
                             {formatTimeBolivia(sale.created_at)}
                           </span>
                           <span>•</span>
-                          <span>
-                            {sale.quantity} {sale.quantity === 1 ? 'ud.' : 'uds.'}
+                          <span className="flex items-center gap-1 text-slate-400 truncate max-w-[120px] sm:max-w-none">
+                            <User className="w-3 h-3 text-slate-500" />
+                            {sale.profiles?.full_name || 'Empleado'}
                           </span>
-                          {isAdmin && (
-                            <>
-                              <span>•</span>
-                              <span className="flex items-center gap-1 text-slate-400 truncate max-w-[100px]">
-                                <User className="w-3 h-3 text-slate-500" />
-                                {sale.profiles?.full_name || 'Empleado'}
-                              </span>
-                            </>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -244,7 +242,7 @@ export const CommissionsDetailModal: React.FC<CommissionsDetailModalProps> = ({
                         +{formatCurrency(commission)}
                       </span>
                       <p className="text-[10px] text-slate-500">
-                        ({sale.quantity} × {isLap ? '50' : '5'} Bs.)
+                        {sale.quantity} {Number(sale.quantity) === 1 ? 'ud.' : 'uds.'}
                       </p>
                     </div>
                   </div>

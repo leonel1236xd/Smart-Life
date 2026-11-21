@@ -12,12 +12,14 @@ import {
   PlusCircle,
   Minus,
   Plus,
-  Laptop,
-  Headphones,
   Coins,
+  ChevronDown,
 } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters';
-import { calculateCommission, inferCategoryFromProductName } from '../../lib/commissions';
+import {
+  calculateCommission,
+  PRODUCT_CATEGORIES_SELECT_OPTIONS,
+} from '../../lib/commissions';
 import type { CreateSaleInput, ProductCategory, Sale } from '../../types';
 
 interface SaleFormModalProps {
@@ -52,7 +54,6 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
     unit_price: null,
     notes: null,
   });
-  const [hasManuallySelectedCategory, setHasManuallySelectedCategory] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
   // Focus en el campo de producto al abrir solo en pantallas grandes para no abrir teclado bruscamente en móvil
@@ -72,7 +73,6 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
         unit_price: null,
         notes: null,
       });
-      setHasManuallySelectedCategory(false);
       setErrors({});
     }
   }, [isOpen]);
@@ -117,7 +117,8 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
     if (!validate() || submitting) return;
 
     const qty = Math.max(1, Math.floor(Number(formData.quantity) || 1));
-    const commAmount = calculateCommission(formData.category, qty);
+    const price = Number(formData.unit_price) || 0;
+    const commAmount = calculateCommission(formData.category, qty, price);
 
     const payload: CreateSaleInput = {
       ...formData,
@@ -147,20 +148,6 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
     }
   };
 
-  const handleProductNameChange = (value: string) => {
-    handleFieldChange('product_name', value);
-    // Si el usuario no ha forzado manualmente la categoría, auto-sugerir si escribe 'laptop'
-    if (!hasManuallySelectedCategory && value.trim()) {
-      const inferred = inferCategoryFromProductName(value);
-      setFormData((prev) => ({ ...prev, product_name: value, category: inferred }));
-    }
-  };
-
-  const handleCategorySelect = (category: ProductCategory) => {
-    setHasManuallySelectedCategory(true);
-    handleFieldChange('category', category);
-  };
-
   const adjustQuantity = (delta: number) => {
     const current = Number(formData.quantity) || 1;
     const next = Math.max(1, current + delta);
@@ -172,9 +159,12 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
   const priceNum = Number(formData.unit_price) || 0;
   const totalEstimado = quantityNum > 0 && priceNum > 0 ? quantityNum * priceNum : null;
 
-  // Cálculo de la comisión del empleado en vivo (+5 Bs por accesorio, +50 Bs por laptop)
-  const comisionUnitaria = formData.category === 'laptop' ? 50 : 5;
-  const comisionTotalEstimada = quantityNum > 0 ? quantityNum * comisionUnitaria : 0;
+  // Cálculo en vivo de la comisión para el vendedor según categoría seleccionada y precio
+  const comisionTotalEstimada = calculateCommission(
+    formData.category,
+    quantityNum,
+    priceNum
+  );
 
   return (
     <Modal
@@ -187,21 +177,24 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
         {/* Producto */}
         <Input
           ref={productRef}
-          label="Producto o accesorio"
-          placeholder="Ej: Laptop Lenovo i5, Mouse Logitech, Cable HDMI..."
+          label="Producto o servicio"
+          placeholder="Ej: Laptop Lenovo i5, Monitor LG 24, Mantenimiento..."
           value={formData.product_name}
-          onChange={(e) => handleProductNameChange(e.target.value)}
+          onChange={(e) => handleFieldChange('product_name', e.target.value)}
           error={errors.product_name}
           required
           leftIcon={<Package className="w-4 h-4" />}
           autoComplete="off"
         />
 
-        {/* Selector de Categoría: Accesorio (+5 Bs.) vs Laptop (+50 Bs.) */}
+        {/* Selector de Categoría (ComboBox) */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-300 tracking-wide flex items-center justify-between">
+          <label
+            htmlFor="sale-category"
+            className="text-xs font-semibold text-slate-300 tracking-wide flex items-center justify-between"
+          >
             <span className="flex items-center gap-1.5">
-              <span>Tipo de artículo</span>
+              <span>Tipo de artículo / servicio</span>
               <span className="text-rose-400">*</span>
             </span>
             <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
@@ -210,78 +203,28 @@ export const SaleFormModal: React.FC<SaleFormModalProps> = ({
             </span>
           </label>
 
-          <div className="grid grid-cols-2 gap-2">
-            {/* Botón Accesorio */}
-            <button
-              type="button"
-              onClick={() => handleCategorySelect('accesorio')}
-              className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all text-left ${
-                formData.category === 'accesorio'
-                  ? 'bg-blue-950/70 border-blue-500 text-white shadow-md shadow-blue-950/40 ring-1 ring-blue-500/60'
-                  : 'bg-[#0c111a] border-[#222d3d] text-slate-400 hover:text-white hover:border-[#2f3d52]'
-              }`}
+          <div className="relative">
+            <select
+              id="sale-category"
+              value={formData.category}
+              onChange={(e) =>
+                handleFieldChange('category', e.target.value as ProductCategory)
+              }
+              className="w-full h-11 pl-3.5 pr-10 rounded-xl bg-[#0c111a] border border-[#222d3d] text-slate-100 text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0084FF]/40 focus:border-[#0084FF] transition-all"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                    formData.category === 'accesorio'
-                      ? 'bg-blue-500/20 text-blue-400'
-                      : 'bg-[#151c28] text-slate-500'
-                  }`}
+              {PRODUCT_CATEGORIES_SELECT_OPTIONS.map((opt) => (
+                <option
+                  key={opt.value}
+                  value={opt.value}
+                  className="bg-[#0f1520] text-slate-100 py-1"
                 >
-                  <Headphones className="w-4 h-4" />
-                </div>
-                <div className="truncate">
-                  <p className="text-xs sm:text-sm font-semibold truncate">Accesorio</p>
-                  <p className="text-[10px] text-slate-400">Mouse, cables, etc.</p>
-                </div>
-              </div>
-              <span
-                className={`shrink-0 ml-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold ${
-                  formData.category === 'accesorio'
-                    ? 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
-                    : 'bg-[#141b27] text-slate-400 border border-[#233144]'
-                }`}
-              >
-                +5 Bs.
-              </span>
-            </button>
-
-            {/* Botón Laptop */}
-            <button
-              type="button"
-              onClick={() => handleCategorySelect('laptop')}
-              className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all text-left ${
-                formData.category === 'laptop'
-                  ? 'bg-emerald-950/70 border-emerald-500 text-white shadow-md shadow-emerald-950/40 ring-1 ring-emerald-500/60'
-                  : 'bg-[#0c111a] border-[#222d3d] text-slate-400 hover:text-white hover:border-[#2f3d52]'
-              }`}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                    formData.category === 'laptop'
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'bg-[#151c28] text-slate-500'
-                  }`}
-                >
-                  <Laptop className="w-4 h-4" />
-                </div>
-                <div className="truncate">
-                  <p className="text-xs sm:text-sm font-semibold truncate">Laptop</p>
-                  <p className="text-[10px] text-slate-400">Equipos portátiles</p>
-                </div>
-              </div>
-              <span
-                className={`shrink-0 ml-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold ${
-                  formData.category === 'laptop'
-                    ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/40'
-                    : 'bg-[#141b27] text-slate-400 border border-[#233144]'
-                }`}
-              >
-                +50 Bs.
-              </span>
-            </button>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+              <ChevronDown className="w-4 h-4" />
+            </div>
           </div>
         </div>
 
